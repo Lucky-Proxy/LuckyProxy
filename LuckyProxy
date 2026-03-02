@@ -2,9 +2,9 @@
 set -eu
 
 BASE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-MODE="${LUCKY_MODE:-auto}" # auto|32|64
+MODE="${LUCKY_MODE:-auto}" # auto|32|64|x64
 
-if [ "${1:-}" = "auto" ] || [ "${1:-}" = "32" ] || [ "${1:-}" = "64" ]; then
+if [ "${1:-}" = "auto" ] || [ "${1:-}" = "32" ] || [ "${1:-}" = "64" ] || [ "${1:-}" = "x64" ]; then
   MODE="$1"
   shift
 fi
@@ -13,6 +13,10 @@ ABILIST="$(getprop ro.product.cpu.abilist 2>/dev/null || true)"
 if [ -z "$ABILIST" ]; then
   ABILIST="$(uname -m 2>/dev/null || true)"
 fi
+
+runx64() {
+  exec "$BASE/x86_64/LuckyProxy" "$@"
+}
 
 run32() {
   exec "$BASE/armeabi-v7a/LuckyProxy" "$@"
@@ -23,6 +27,13 @@ run64() {
 }
 
 case "$MODE" in
+  x64)
+    echo "$ABILIST" | grep -q "x86_64" || {
+      echo "Device tidak support 64-bit x86 ABI (x86_64)." >&2
+      exit 1
+    }
+    runx64 "$@"
+    ;;
   32)
     echo "$ABILIST" | grep -q "armeabi-v7a\|armv7" || {
       echo "Device tidak support 32-bit ABI (armeabi-v7a)." >&2
@@ -38,7 +49,9 @@ case "$MODE" in
     run64 "$@"
     ;;
   auto)
-    if echo "$ABILIST" | grep -q "arm64-v8a\|aarch64"; then
+    if echo "$ABILIST" | grep -q "x86_64"; then
+      runx64 "$@"
+    elif echo "$ABILIST" | grep -q "arm64-v8a\|aarch64"; then
       run64 "$@"
     elif echo "$ABILIST" | grep -q "armeabi-v7a\|armv7"; then
       run32 "$@"
@@ -48,7 +61,7 @@ case "$MODE" in
     fi
     ;;
   *)
-    echo "Mode tidak valid: $MODE (pakai: auto|32|64)" >&2
+    echo "Mode tidak valid: $MODE (pakai: auto|x64|32|64)" >&2
     exit 1
     ;;
 esac
