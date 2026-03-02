@@ -36,7 +36,7 @@ Usage:
 Options:
   --interactive        Force interactive wizard mode.
   --url <CUSTOM_URL>   Override source URL/base.
-  --abi <MODE>         ABI mode: auto | arm64 | armv7.
+  --abi <MODE>         ABI mode: auto | x86_64 | arm64 | armv7.
   --skip-items         Do not sync items.dat.
   --force              Replace files even if content is unchanged.
   --help, -h           Show this help.
@@ -209,9 +209,10 @@ run_interactive_wizard() {
     while true; do
         printf '\n%bSelect ABI mode:%b\n' "$C_BLUE" "$C_RESET"
         printf '  1) auto (recommended)\n'
-        printf '  2) arm64\n'
-        printf '  3) armv7\n'
-        printf 'Choose [1-3]: '
+        printf '  2) x86_64\n'
+        printf '  3) arm64\n'
+        printf '  4) armv7\n'
+        printf 'Choose [1-4]: '
         local abi_choice=""
         read -r abi_choice || true
         abi_choice="${abi_choice:-1}"
@@ -221,15 +222,19 @@ run_interactive_wizard() {
                 break
                 ;;
             2)
-                ABI_MODE="arm64"
+                ABI_MODE="x86_64"
                 break
                 ;;
             3)
+                ABI_MODE="arm64"
+                break
+                ;;
+            4)
                 ABI_MODE="armv7"
                 break
                 ;;
             *)
-                log_warn "Invalid choice. Please select 1, 2, or 3."
+                log_warn "Invalid choice. Please select 1, 2, 3, or 4."
                 ;;
         esac
     done
@@ -342,7 +347,7 @@ ensure_non_empty() {
 
 contains_launcher_pattern() {
     local file="$1"
-    grep -q "arm64-v8a/LuckyProxy\|armeabi-v7a/LuckyProxy" "$file" 2>/dev/null
+    grep -q "x86_64/LuckyProxy\|arm64-v8a/LuckyProxy\|armeabi-v7a/LuckyProxy" "$file" 2>/dev/null
 }
 
 print_candidates() {
@@ -415,6 +420,11 @@ resolve_source() {
 set_selected_abi() {
     local mode="$1"
     case "$mode" in
+        x86_64|x64)
+            SELECTED_ABI="x86_64"
+            SELECTED_ABI_SHORT="x86_64"
+            SELECTED_ABI_DIR="x86_64"
+            ;;
         arm64)
             SELECTED_ABI="arm64"
             SELECTED_ABI_SHORT="arm64"
@@ -426,7 +436,7 @@ set_selected_abi() {
             SELECTED_ABI_DIR="armeabi-v7a"
             ;;
         *)
-            die "Unsupported ABI mode: $mode" "Use --abi auto|arm64|armv7."
+            die "Unsupported ABI mode: $mode" "Use --abi auto|x86_64|arm64|armv7."
             ;;
     esac
 }
@@ -446,6 +456,10 @@ detect_abi_auto() {
     log_debug "Detected abilist: ${abilist:-<empty>}"
     log_debug "Detected uname -m: ${machine:-<empty>}"
 
+    if echo "$abilist" | grep -qi "x86_64"; then
+        set_selected_abi "x86_64"
+        return
+    fi
     if echo "$abilist" | grep -qi "arm64-v8a\|aarch64"; then
         set_selected_abi "arm64"
         return
@@ -456,6 +470,10 @@ detect_abi_auto() {
     fi
 
     case "$machine" in
+        x86_64|amd64)
+            set_selected_abi "x86_64"
+            return
+            ;;
         aarch64|arm64)
             set_selected_abi "arm64"
             return
@@ -466,8 +484,8 @@ detect_abi_auto() {
             ;;
     esac
 
-    log_warn "Auto-detect ABI failed (non-Android/unknown env). Falling back to arm64."
-    set_selected_abi "arm64"
+    log_warn "Auto-detect ABI failed (non-Android/unknown env). Falling back to x86_64."
+    set_selected_abi "x86_64"
 }
 
 ORIGINAL_ARGC=$#
@@ -523,11 +541,11 @@ case "$ABI_MODE" in
     auto)
         detect_abi_auto
         ;;
-    arm64|armv7)
+    x86_64|x64|arm64|armv7)
         set_selected_abi "$ABI_MODE"
         ;;
     *)
-        die "Invalid ABI mode: $ABI_MODE" "Use --abi auto|arm64|armv7."
+        die "Invalid ABI mode: $ABI_MODE" "Use --abi auto|x86_64|arm64|armv7."
         ;;
 esac
 
@@ -636,4 +654,3 @@ fi
 printf '  %bABI%b    : %s (%s)\n' "$C_BLUE" "$C_RESET" "$SELECTED_ABI_SHORT" "$SELECTED_ABI_DIR"
 printf '  %bDir%b    : %s\n' "$C_BLUE" "$C_RESET" "$INSTALL_DIR"
 printf '  %bRun%b    : cd "%s" && ./LuckyProxy\n' "${C_GREEN}${C_BOLD}" "$C_RESET" "$INSTALL_DIR"
-printf '  %bRun Proxy%b    : ./LuckyProxy\n'
