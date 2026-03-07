@@ -239,17 +239,11 @@ run_interactive_wizard() {
         esac
     done
 
-    if ask_yes_no "Sync items.dat?" "y"; then
-        SKIP_ITEMS=0
-    else
-        SKIP_ITEMS=1
-    fi
+    SKIP_ITEMS=0
+    log_info "Sync items.dat? -> auto yes"
 
-    if ask_yes_no "Force overwrite files even if unchanged?" "n"; then
-        FORCE=1
-    else
-        FORCE=0
-    fi
+    FORCE=1
+    log_info "Force overwrite files even if unchanged? -> auto yes"
 
     printf '\n%bConfiguration Summary:%b\n' "${C_BLUE}${C_BOLD}" "$C_RESET"
     if [[ -n "$CUSTOM_URL" ]]; then
